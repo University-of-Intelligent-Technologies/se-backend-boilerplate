@@ -16,7 +16,8 @@ import { dbCreateConnection } from './orm/dbCreateConnection';
 import routes from './routes';
 
 export const app = express();
-app.use(cors());
+// expose the refreshed JWT that checkJwt sends in the `token` header, otherwise the browser hides it
+app.use(cors({ exposedHeaders: ['token'] }));
 app.use(helmet());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
