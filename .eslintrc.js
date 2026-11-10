@@ -1,6 +1,9 @@
 module.exports = {
   parser: '@typescript-eslint/parser',
 
+  // build output: otherwise `npm run lint` after `npm run build` reports errors in dist/*.js
+  ignorePatterns: ['dist/'],
+
   extends: [
     'plugin:@typescript-eslint/recommended',
     'prettier',
