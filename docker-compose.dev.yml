@@ -17,6 +17,10 @@ services:
     entrypoint: /bin/sh './scripts/be-node-dev.sh'
     env_file:
       - .env
+    environment:
+      # .env points to localhost:8432 for running on the host; inside the network use the service name
+      PG_HOST: db_postgres
+      PG_PORT: '5432'
     ports:
       - '4000:4000'
     depends_on:
@@ -36,6 +40,9 @@ services:
       - db_postgres
     env_file:
       - .env
+    environment:
+      PG_HOST: db_postgres
+      PG_PORT: '5432'
     volumes:
       - .:/app/
       - /app/node_modules
