@@ -4,6 +4,9 @@ import { CustomError } from '../utils/response/custom-error/CustomError';
 
 export const errorHandler = (err: CustomError | Error, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof CustomError) {
+    if (err.isDatabaseError) {
+      console.error(err.ErrorRaw);
+    }
     return res.status(err.HttpStatusCode).json(err.JSON);
   }
 

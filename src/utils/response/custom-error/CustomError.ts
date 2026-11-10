@@ -30,12 +30,28 @@ export class CustomError extends Error {
     return this.httpStatusCode;
   }
 
+  get ErrorRaw() {
+    return this.errorRaw;
+  }
+
+  // Database errors (TypeORM QueryFailedError) carry the SQL text, its parameters and driver details.
+  // They are logged on the server (see errorHandler) and never sent to the client.
+  get isDatabaseError(): boolean {
+    const raw = this.errorRaw;
+    return Boolean(raw && (raw.name === 'QueryFailedError' || 'query' in raw || 'driverError' in raw));
+  }
+
   get JSON(): ErrorResponse {
+    let errorRaw: ErrorResponse['errorRaw'] = null;
+    if (this.errorRaw && !this.isDatabaseError) {
+      // other raw errors (e.g. JWT "jwt expired") are useful to the client, but only their name and message
+      errorRaw = { name: this.errorRaw.name, message: this.errorRaw.message };
+    }
     return {
       errorType: this.errorType,
       errorMessage: this.message,
-      errors: this.errors,
-      errorRaw: this.errorRaw,
+      errors: this.isDatabaseError ? ['Database error, details are in the server log'] : this.errors,
+      errorRaw,
       errorsValidation: this.errorsValidation,
     };
   }
