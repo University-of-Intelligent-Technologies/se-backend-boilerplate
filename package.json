@@ -2,6 +2,9 @@
   "name": "express-typescript-typeorm-boilerplate",
   "version": "1.0.0",
   "description": "RESTful API boilerplate with Typescript, TypeORM, ExpressJs & Mocha.",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "cross-env NODE_PATH=./src ts-node-dev --respawn ./src/index.ts",
     "build": "rimraf dist && tsc",
