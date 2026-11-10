@@ -1,79 +1,151 @@
-#  TypeORM / Express / TypeScript RESTful API boilerplate
+# SE backend boilerplate (Express · TypeORM · PostgreSQL · TypeScript)
+
+REST API з JWT-авторизацією й ролями: бекенд для лабораторних курсу «Конструювання програмного забезпечення». Це форк [mkosir/typeorm-express-typescript](https://github.com/mkosir/typeorm-express-typescript) з виправленнями для навчання й Windows (див. [«Чим відрізняється від оригіналу»](#11-чим-відрізняється-від-оригіналу)). Фронтенд до нього: [se-frontend-boilerplate](https://github.com/University-of-Intelligent-Technologies/se-frontend-boilerplate).
+
+## 1. Що встановити
+
+|         | Windows                                                                                                                                                                                                            | macOS / Linux                                                              |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Git     | [git-scm.com](https://git-scm.com/download/win), налаштування за замовчуванням                                                                                                                                     | macOS: `xcode-select --install` або `brew install git`; Linux: пакет `git` |
+| Node.js | [nodejs.org](https://nodejs.org/), **22 або 24 LTS** (перевірено на 20, 22, 24); npm встановиться разом                                                                                                            | те саме, або `nvm install 22`                                              |
+| Docker  | [Docker Desktop](https://www.docker.com/products/docker-desktop/) з **WSL 2** (Windows 10 22H2 / 11, у BIOS увімкнена віртуалізація). Після встановлення запустіть Docker Desktop і дочекайтеся **Engine running** | macOS: Docker Desktop; Linux: Docker Engine + плагін `docker compose`      |
+| IDE     | WebStorm або VS Code                                                                                                                                                                                               | те саме                                                                    |
+
+Перевірка (PowerShell або термінал): `git --version`, `node -v`, `docker version`, `docker compose version` — кожна команда виводить версію без помилок.
+
+## 2. Клонування
+
+```bash
+git clone https://github.com/University-of-Intelligent-Technologies/se-backend-boilerplate.git
+cd se-backend-boilerplate
+```
+
+## 3. Запуск крок за кроком
+
+```bash
+npm install                                                             # 1. залежності
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db_postgres   # 2. база в Docker
+npm run migration:run                                                   # 3. таблиці (лише перший раз)
+npm run seed:run                                                        # 4. тестові користувачі (лише перший раз)
+npm run dev                                                             # 5. API
+```
+
+У терміналі мають з'явитися `Server running on port 4000` і `Database connection success`. API: <http://localhost:4000/v1>. PostgreSQL слухає `localhost:8432` (користувач `walter`, пароль `white`, база `boilerplate`, усе в `.env`). Код перезапускається сам після збереження файлу.
+
+**Перевірка.** Тестові користувачі: `admin@admin.com` (роль ADMINISTRATOR) і `standard@standard.com` (STANDARD), пароль у всіх `pass1`.
+
+PowerShell (Windows):
+
+```powershell
+$r = Invoke-RestMethod -Method Post -Uri http://localhost:4000/v1/auth/login -ContentType 'application/json' -Body '{"email":"admin@admin.com","password":"pass1"}'
+$r.data                                                                 # Bearer eyJ...
+Invoke-RestMethod -Uri http://localhost:4000/v1/users -Headers @{ Authorization = $r.data }
+```
+
+curl (macOS / Linux):
+
+```bash
+curl -X POST http://localhost:4000/v1/auth/login -H 'Content-Type: application/json' -d '{"email":"admin@admin.com","password":"pass1"}'
+curl http://localhost:4000/v1/users -H 'Authorization: Bearer <токен з попередньої відповіді>'
+```
+
+Зручніше — Postman: імпортуйте колекцію й оточення з теки [`postman`](./postman).
+
+Маршрути: `POST /v1/auth/login`, `POST /v1/auth/register`, `POST /v1/auth/change-password`; `GET /v1/users` (лише адміністратор); `GET | PATCH | DELETE /v1/users/:id` (адміністратор або сам користувач).
+
+Наступного разу достатньо кроків 2 і 5: дані бази зберігаються в томі Docker.
+
+## 4. Запуск з дебагером
+
+- **VS Code:** панель Run and Debug → конфігурація **«API: npm run dev (debug)»** → F5. Поставте брейкпоінт, наприклад у `src/controllers/auth/login.ts`, і надішліть запит на логін.
+- **WebStorm:** відкрийте `package.json` → ▶ біля скрипту `dev` → **Debug 'dev'**.
+- **Будь-яка IDE:** `npm run dev:debug` запускає API з інспектором на порту 9229; далі під'єднайтеся до нього (VS Code: «API: attach to npm run dev:debug»; WebStorm: Run → Attach to Node.js/Chrome, порт 9229, Reconnect automatically).
+
+База має бути запущена (крок 2 вище).
+
+## 5. З'єднання з фронтендом
+
+- Адреса API: `http://localhost:4000/v1` (у фронтенді — змінна `VITE_API_URL`).
+- CORS дозволено для будь-якого origin, тож фронтенд на `http://localhost:5173` працює без проксі.
+- Логін повертає `{ "message": "...", "data": "Bearer <jwt>" }`. Значення `data` передавайте як є в заголовку `Authorization`.
+- Токен живе 15 хвилин (`JWT_EXPIRATION` у `.env`). Кожна успішна відповідь на захищений маршрут містить оновлений токен у заголовку `token` — браузер його бачить (`Access-Control-Expose-Headers: token`).
+- Коди помилок: `401` — немає токена або він недійсний/прострочений; `403` — бракує прав; `400` — помилка валідації (деталі в `errorsValidation`); **неправильні email чи пароль при логіні дають `404`**.
+
+## 6. Усе в Docker
+
+Якщо не потрібен дебагер на хості, усе можна запустити однією командою (замість кроків 2–5):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+Контейнер дочекається бази, виконає міграції й сиди і запустить API на порту 4000 (код з теки проєкту, зміни підхоплюються). Зупинка — Ctrl+C. Тести в окремому контейнері:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml exec be_boilerplate_test npm test
+```
+
+Не запускайте одночасно цей режим і `npm run dev`: обидва займають порт 4000.
+
+## 7. Без Docker: свій PostgreSQL
+
+Якщо Docker не встановлюється, підійде локальний PostgreSQL 14+. Створіть користувача й базу (psql або pgAdmin → Query Tool), **кожну команду окремо**: разом вони дають помилку `CREATE DATABASE cannot run inside a transaction block`.
+
+```sql
+CREATE ROLE walter LOGIN PASSWORD 'white';
+```
+
+```sql
+CREATE DATABASE boilerplate OWNER walter;
+```
+
+У `.env` змініть порт: `PG_PORT=5432` (`PG_HOST=localhost` лишається). Далі кроки 3–5 розділу «Запуск».
+
+## 8. Корисні команди
+
+| Команда                                                                  | Що робить                                                                  |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| `npm run dev` / `npm run dev:debug`                                      | API з автоперезапуском / те саме з інспектором на 9229                     |
+| `npm run lint` / `npm run lint-fix`                                      | ESLint і перевірка типів / автовиправлення                                 |
+| `npm run build`, `npm start`                                             | збірка в `dist/` і запуск зібраного                                        |
+| `npm test`                                                               | тести (потрібна база; зупиніть `npm run dev`, бо тести займають порт 4000) |
+| `npm run migration:generate -- AddProducts`                              | згенерувати міграцію зі змін у сутностях                                   |
+| `npm run migration:run` / `migration:revert`                             | застосувати / відкотити останню міграцію                                   |
+| `npm run seed:run`                                                       | тестові дані                                                               |
+| `docker compose -f docker-compose.yml -f docker-compose.dev.yml stop`    | зупинити контейнери (дані лишаються)                                       |
+| `docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v` | видалити контейнери **разом із даними бази**                               |
+
+## 9. Типові проблеми
+
+- **`npm : File ...\npm.ps1 cannot be loaded because running scripts is disabled`** (PowerShell) — один раз виконайте `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` або працюйте в `cmd`.
+- **`port is already allocated` / `EADDRINUSE`** — порт 8432 чи 4000 зайнятий (інший контейнер, інша копія проєкту, `npm run dev` в іншому вікні). Подивіться `docker ps`, зупиніть зайве; або змініть порт: API — `PORT` у `.env`, база — `ports` у `docker-compose.dev.yml` і `PG_PORT` у `.env`.
+- **`error during connect` / `Cannot connect to the Docker daemon`** — Docker Desktop не запущено. **`WSL 2 is not installed`** — виконайте `wsl --install` у PowerShell від адміністратора й перезавантажтеся.
+- **`ECONNREFUSED 127.0.0.1:8432`** — контейнер бази не запущено або він ще стартує: `docker ps`, потім повторіть.
+- **`password authentication failed for user "walter"`** — том бази лишився від запуску з іншими налаштуваннями. Перестворіть (дані зникнуть): `docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v`, далі кроки 2–4.
+- **Git не приймає коміт** (`subject may not be empty`, `type may not be empty`) — повідомлення мають бути у форматі Conventional Commits: `feat: add Product entity`, `fix: validate price`. Перед `git push` автоматично виконується `npm run build`, тож помилки компіляції не дадуть запушити.
+
+## 10. Структура
+
+`src/routes` — маршрути (`/v1/...`) → `src/middleware` (JWT, ролі, валідація) → `src/controllers` → `src/orm/entities` (сутності TypeORM); `src/orm/migrations` і `src/orm/seeds` — міграції й тестові дані; `.env` — налаштування.
+
+## 11. Чим відрізняється від оригіналу
+
+- Переноси рядків LF для всіх файлів (`.gitattributes`): скрипти в контейнерах не ламаються на Windows.
+- База на порту 8432 (5432 часто зайнятий локальним PostgreSQL), дані в іменованому томі Docker, без фіксованих імен контейнерів.
+- `npm run dev` на хості працює одразу: `.env` дивиться на `localhost:8432`, `cross-env` у скриптах, CLI TypeORM викликається так, що працює й на Windows.
+- Сутність `User` узгоджена з міграцією: `migration:generate` на свіжій базі не знаходить змін.
+- Без токена — 401 (а не 400), бракує прав — 403 (а не 401); оновлений токен у заголовку `token` видно браузеру.
+- Відповіді з помилками без стеку й без тексту SQL; битий JSON у тілі запиту — 400 у тому самому форматі.
+- `npm test` і `npm run lint` працюють на хості; Node 22 у Docker і CI; скрипт `dev:debug` і конфігурації VS Code.
+
+---
+
+## Оригінальний README (англійською)
 
 [![CI][build-badge]][build-url]
 [![TypeScript][typescript-badge]][typescript-url]
 [![prettier][prettier-badge]][prettier-url]
 ![Heisenberg](misc/heisenberg.png)
-
-## Швидкий старт (Windows)
-
-> Розділ для студентів курсу «Конструювання програмного забезпечення». Нижче — оригінальний README бойлерплейта.
-
-### 1. Що встановити
-
-- [Git](https://git-scm.com/download/win)
-- [Node.js](https://nodejs.org/) — версія LTS (npm встановиться разом із ним)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) з WSL 2. Після встановлення запустіть Docker Desktop і дочекайтеся статусу **Engine running**
-- IDE: WebStorm або VS Code
-
-Перевірка в PowerShell: `git --version`, `node -v`, `docker version` — кожна команда має вивести версію без помилок.
-
-### 2. Склонувати й встановити залежності
-
-```powershell
-git clone <адреса цього репозиторію>
-cd typeorm-express-typescript
-npm install
-```
-
-### 3. Запустити базу даних (Docker)
-
-```powershell
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db_postgres
-```
-
-PostgreSQL працює на `localhost:8432` (користувач `walter`, пароль `white`, база `boilerplate` — див. `.env`).
-
-### 4. Створити таблиці й тестових користувачів (лише перший раз)
-
-```powershell
-npm run migration:run
-npm run seed:run
-```
-
-### 5. Запустити API
-
-```powershell
-npm run dev
-```
-
-API доступне на <http://localhost:4000>. Щоб працювати з дебагером, запустіть npm-скрипт `dev` у режимі Debug у вашій IDE.
-
-### 6. Перевірити
-
-```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:4000/v1/auth/login -ContentType 'application/json' -Body '{"email":"admin@admin.com","password":"pass1"}'
-```
-
-У відповіді має бути `Token successfully created.` і токен `Bearer …`. Решту запитів зручно надсилати з Postman: колекція й оточення лежать у теці [`postman`](./postman). Тестові користувачі: `admin@admin.com` (адміністратор) і `standard@standard.com` (звичайний), пароль у всіх `pass1`.
-
-### Усе в Docker (без запуску на хості)
-
-```powershell
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-```
-
-Контейнер сам виконає міграції та сиди й запустить API на порту 4000.
-
-### Типові проблеми
-
-- **`port is already allocated` / `address already in use`** — порт 8432 або 4000 зайнятий іншим контейнером чи програмою. Зупиніть її (Docker Desktop → Containers) або змініть порт: для бази — у `docker-compose.dev.yml` і `PG_PORT` у `.env`, для API — `PORT` у `.env`.
-- **`error during connect` / `Cannot connect to the Docker daemon`** — Docker Desktop не запущено.
-- **`ECONNREFUSED 127.0.0.1:8432`** — контейнер бази не запущено або він ще стартує. Перевірте `docker ps` і повторіть команду.
-- **`password authentication failed`** — база вже була створена раніше з іншим паролем. Перестворити її (усі дані бази буде видалено): `docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v`, далі знову кроки 3–4.
-- **Git не приймає коміт (`subject may not be empty`, `type may not be empty`)** — у репозиторії ввімкнено перевірку повідомлень комітів: пишіть у форматі `feat: додати сутність Product` чи `fix: виправити валідацію`.
-
----
 
 Boilerplate with focus on best practices and painless developer experience:
 
