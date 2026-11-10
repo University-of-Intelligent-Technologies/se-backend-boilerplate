@@ -1,5 +1,7 @@
 .idea/
-.vscode/
+.vscode/*
+# shared debug configurations for VS Code
+!.vscode/launch.json
 .DS_Store
 
 node_modules/
