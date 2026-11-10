@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   be_boilerplate:
     deploy:

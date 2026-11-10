@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   be_boilerplate:
     command: /bin/sh -c "echo 'Running API on production!' && npm run build && npm start"
