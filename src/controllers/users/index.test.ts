@@ -59,11 +59,11 @@ describe('Users', () => {
 
     it('should report error of unauthorized user', async () => {
       const res = await request(app).get('/v1/users').set('Authorization', standardUserToken);
-      expect(res.status).to.equal(401);
-      expect(res.body.errorType).to.equal('Unauthorized');
-      expect(res.body.errorMessage).to.equal('Unauthorized - Insufficient user rights');
+      expect(res.status).to.equal(403);
+      expect(res.body.errorType).to.equal('Forbidden');
+      expect(res.body.errorMessage).to.equal('Forbidden - Insufficient user rights');
       expect(res.body.errors).to.eql([
-        'Unauthorized - Insufficient user rights',
+        'Forbidden - Insufficient user rights',
         'Current role: STANDARD. Required role: ADMINISTRATOR',
       ]);
       expect(res.body.errorRaw).to.an('null');

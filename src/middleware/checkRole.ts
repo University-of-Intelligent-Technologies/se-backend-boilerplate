@@ -18,13 +18,13 @@ export const checkRole = (roles: Role[], isSelfAllowed = false) => {
 
     if (roles.indexOf(role) === -1) {
       const errors = [
-        'Unauthorized - Insufficient user rights',
+        'Forbidden - Insufficient user rights',
         `Current role: ${role}. Required role: ${roles.toString()}`,
       ];
       if (errorSelfAllowed) {
         errors.push(errorSelfAllowed);
       }
-      const customError = new CustomError(401, 'Unauthorized', 'Unauthorized - Insufficient user rights', errors);
+      const customError = new CustomError(403, 'Forbidden', 'Forbidden - Insufficient user rights', errors);
       return next(customError);
     }
     return next();
