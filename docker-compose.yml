@@ -1,6 +1,5 @@
 services:
   be_boilerplate:
-    container_name: 'be_boilerplate'
     build: .
     restart: always
     volumes:

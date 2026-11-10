@@ -1,6 +1,5 @@
 services:
   db_postgres:
-    container_name: 'db_boilerplate'
     image: 'postgres:14.2-alpine'
     restart: always
     env_file:
@@ -29,7 +28,6 @@ services:
       - db_postgres
 
   be_boilerplate_test:
-    container_name: 'be_boilerplate_test'
     command: sh -c "echo 'Test container ready' && tail -f /dev/null"
     build: .
     stdin_open: true
